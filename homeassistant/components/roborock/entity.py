@@ -4,7 +4,7 @@ from typing import Any
 
 from roborock.api import RoborockClient
 from roborock.command_cache import CacheableAttribute
-from roborock.containers import Consumable, Status
+from roborock.data import Consumable, Status
 from roborock.exceptions import RoborockException
 from roborock.roborock_message import RoborockDataProtocol
 from roborock.roborock_typing import RoborockCommand
@@ -121,12 +121,15 @@ class RoborockCoordinatedEntityV1(
         listener_request: list[RoborockDataProtocol]
         | RoborockDataProtocol
         | None = None,
+        is_dock_entity: bool = False,
     ) -> None:
         """Initialize the coordinated Roborock Device."""
         RoborockEntityV1.__init__(
             self,
             unique_id=unique_id,
-            device_info=coordinator.device_info,
+            device_info=coordinator.device_info
+            if not is_dock_entity
+            else coordinator.dock_device_info,
             api=coordinator.api,
         )
         CoordinatorEntity.__init__(self, coordinator=coordinator)

@@ -10,6 +10,7 @@ DOMAIN = "roborock"
 CONF_ENTRY_CODE = "code"
 CONF_BASE_URL = "base_url"
 CONF_USER_DATA = "user_data"
+CONF_SHOW_BACKGROUND = "show_background"
 
 # Option Flow steps
 DRAWABLES = "drawables"
@@ -46,7 +47,7 @@ PLATFORMS = [
 ]
 
 # This can be lowered in the future if we do not receive rate limiting issues.
-IMAGE_CACHE_INTERVAL = 30
+IMAGE_CACHE_INTERVAL = timedelta(seconds=30)
 
 MAP_SLEEP = 3
 

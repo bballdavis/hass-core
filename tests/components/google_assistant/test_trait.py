@@ -21,6 +21,7 @@ from homeassistant.components import (
     input_boolean,
     input_button,
     input_select,
+    lawn_mower,
     light,
     lock,
     media_player,
@@ -44,6 +45,7 @@ from homeassistant.components.fan import FanEntityFeature
 from homeassistant.components.google_assistant import const, error, helpers, trait
 from homeassistant.components.google_assistant.error import SmartHomeError
 from homeassistant.components.humidifier import HumidifierEntityFeature
+from homeassistant.components.lawn_mower import LawnMowerEntityFeature
 from homeassistant.components.light import LightEntityFeature
 from homeassistant.components.lock import LockEntityFeature
 from homeassistant.components.media_player import (
@@ -153,7 +155,7 @@ async def test_camera_stream(hass: HomeAssistant) -> None:
     )
 
     trt = trait.CameraStreamTrait(
-        hass, State("camera.bla", camera.STATE_IDLE, {}), BASIC_CONFIG
+        hass, State("camera.bla", camera.CameraState.IDLE, {}), BASIC_CONFIG
     )
 
     assert trt.sync_attributes() == {
@@ -589,6 +591,64 @@ async def test_startstop_vacuum(hass: HomeAssistant) -> None:
     assert unpause_calls[0].data == {ATTR_ENTITY_ID: "vacuum.bla"}
 
 
+async def test_dock_lawn_mower(hass: HomeAssistant) -> None:
+    """Test dock trait support for lawn mower domain."""
+    assert helpers.get_google_type(lawn_mower.DOMAIN, None) is not None
+    assert trait.DockTrait.supported(lawn_mower.DOMAIN, 0, None, None)
+
+    trt = trait.DockTrait(
+        hass, State("lawn_mower.bla", lawn_mower.LawnMowerActivity.MOWING), BASIC_CONFIG
+    )
+
+    assert trt.sync_attributes() == {}
+
+    assert trt.query_attributes() == {"isDocked": False}
+
+    calls = async_mock_service(hass, lawn_mower.DOMAIN, lawn_mower.SERVICE_DOCK)
+    await trt.execute(trait.COMMAND_DOCK, BASIC_DATA, {}, {})
+    assert len(calls) == 1
+    assert calls[0].data == {ATTR_ENTITY_ID: "lawn_mower.bla"}
+
+
+async def test_startstop_lawn_mower(hass: HomeAssistant) -> None:
+    """Test startStop trait support for lawn mower domain."""
+    assert helpers.get_google_type(lawn_mower.DOMAIN, None) is not None
+    assert trait.StartStopTrait.supported(lawn_mower.DOMAIN, 0, None, None)
+
+    trt = trait.StartStopTrait(
+        hass,
+        State(
+            "lawn_mower.bla",
+            lawn_mower.LawnMowerActivity.PAUSED,
+            {ATTR_SUPPORTED_FEATURES: LawnMowerEntityFeature.PAUSE},
+        ),
+        BASIC_CONFIG,
+    )
+
+    assert trt.sync_attributes() == {"pausable": True}
+
+    assert trt.query_attributes() == {"isRunning": False, "isPaused": True}
+
+    start_calls = async_mock_service(
+        hass, lawn_mower.DOMAIN, lawn_mower.SERVICE_START_MOWING
+    )
+    await trt.execute(trait.COMMAND_START_STOP, BASIC_DATA, {"start": True}, {})
+    assert len(start_calls) == 1
+    assert start_calls[0].data == {ATTR_ENTITY_ID: "lawn_mower.bla"}
+
+    pause_calls = async_mock_service(hass, lawn_mower.DOMAIN, lawn_mower.SERVICE_PAUSE)
+    await trt.execute(trait.COMMAND_PAUSE_UNPAUSE, BASIC_DATA, {"pause": True}, {})
+    assert len(pause_calls) == 1
+    assert pause_calls[0].data == {ATTR_ENTITY_ID: "lawn_mower.bla"}
+
+    unpause_calls = async_mock_service(
+        hass, lawn_mower.DOMAIN, lawn_mower.SERVICE_START_MOWING
+    )
+    await trt.execute(trait.COMMAND_PAUSE_UNPAUSE, BASIC_DATA, {"pause": False}, {})
+    assert len(unpause_calls) == 1
+    assert unpause_calls[0].data == {ATTR_ENTITY_ID: "lawn_mower.bla"}
+
+
 @pytest.mark.parametrize(
     (
         "domain",
@@ -605,10 +665,10 @@ async def test_startstop_vacuum(hass: HomeAssistant) -> None:
     [
         (
             cover.DOMAIN,
-            cover.STATE_OPEN,
-            cover.STATE_CLOSED,
-            cover.STATE_OPENING,
-            cover.STATE_CLOSING,
+            cover.CoverState.OPEN,
+            cover.CoverState.CLOSED,
+            cover.CoverState.OPENING,
+            cover.CoverState.CLOSING,
             CoverEntityFeature.STOP
             | CoverEntityFeature.OPEN
             | CoverEntityFeature.CLOSE,
@@ -729,10 +789,10 @@ async def test_startstop_cover_valve(
     [
         (
             cover.DOMAIN,
-            cover.STATE_OPEN,
-            cover.STATE_CLOSED,
-            cover.STATE_OPENING,
-            cover.STATE_CLOSING,
+            cover.CoverState.OPEN,
+            cover.CoverState.CLOSED,
+            cover.CoverState.OPENING,
+            cover.CoverState.CLOSING,
             CoverEntityFeature.STOP
             | CoverEntityFeature.OPEN
             | CoverEntityFeature.CLOSE,
@@ -3142,7 +3202,7 @@ async def test_openclose_cover_valve_unknown_state(
             cover.DOMAIN,
             cover.SERVICE_SET_COVER_POSITION,
             CoverEntityFeature.SET_POSITION,
-            cover.STATE_OPEN,
+            cover.CoverState.OPEN,
         ),
         (
             valve.DOMAIN,
@@ -3191,7 +3251,7 @@ async def test_openclose_cover_valve_assumed_state(
     [
         (
             cover.DOMAIN,
-            cover.STATE_OPEN,
+            cover.CoverState.OPEN,
         ),
         (
             valve.DOMAIN,
@@ -3238,8 +3298,8 @@ async def test_openclose_cover_valve_query_only(
     [
         (
             cover.DOMAIN,
-            cover.STATE_OPEN,
-            cover.STATE_CLOSED,
+            cover.CoverState.OPEN,
+            cover.CoverState.CLOSED,
             CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE,
             cover.SERVICE_OPEN_COVER,
             cover.SERVICE_CLOSE_COVER,
@@ -3340,7 +3400,7 @@ async def test_openclose_cover_secure(hass: HomeAssistant, device_class) -> None
         hass,
         State(
             "cover.bla",
-            cover.STATE_OPEN,
+            cover.CoverState.OPEN,
             {
                 ATTR_DEVICE_CLASS: device_class,
                 ATTR_SUPPORTED_FEATURES: CoverEntityFeature.SET_POSITION,
