@@ -1,7 +1,5 @@
 """Support for LED lights."""
 
-from __future__ import annotations
-
 from functools import partial
 from typing import Any, cast
 
@@ -150,12 +148,9 @@ class WLEDSegmentLight(WLEDEntity, LightEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        try:
-            self.coordinator.data.state.segments[self._segment]
-        except KeyError:
-            return False
-
-        return super().available
+        return (
+            super().available and self._segment in self.coordinator.data.state.segments
+        )
 
     @property
     def rgb_color(self) -> tuple[int, int, int] | None:
@@ -191,12 +186,11 @@ class WLEDSegmentLight(WLEDEntity, LightEntity):
 
         # If this is the one and only segment, calculate brightness based
         # on the main and segment brightness
+        segment_brightness = int(state.segments[self._segment].brightness)
         if not self.coordinator.has_main_light:
-            return int(
-                (state.segments[self._segment].brightness * state.brightness) / 255
-            )
+            return int((segment_brightness * state.brightness) / 255)
 
-        return state.segments[self._segment].brightness
+        return segment_brightness
 
     @property
     def effect_list(self) -> list[str]:

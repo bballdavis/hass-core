@@ -1,7 +1,5 @@
 """Support for LED selects."""
 
-from __future__ import annotations
-
 from functools import partial
 
 from wled import LiveDataOverride
@@ -173,12 +171,9 @@ class WLEDPaletteSelect(WLEDEntity, SelectEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        try:
-            self.coordinator.data.state.segments[self._segment]
-        except KeyError:
-            return False
-
-        return super().available
+        return (
+            super().available and self._segment in self.coordinator.data.state.segments
+        )
 
     @property
     def current_option(self) -> str | None:

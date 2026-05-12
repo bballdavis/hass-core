@@ -1,9 +1,9 @@
 """Config flow for the Home Assistant SkyConnect integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
+
+from universal_silabs_flasher.flasher import Zbt1Flasher
 
 from homeassistant.components import usb
 from homeassistant.components.homeassistant_hardware import (
@@ -78,6 +78,9 @@ class SkyConnectFirmwareMixin(ConfigEntryBaseFlow, FirmwareInstallFlowProtocol):
     """Mixin for Home Assistant SkyConnect firmware methods."""
 
     context: ConfigFlowContext
+
+    ZIGBEE_BAUDRATE = 115200
+    _flasher_cls = Zbt1Flasher
 
     def _get_translation_placeholders(self) -> dict[str, str]:
         """Shared translation placeholders."""

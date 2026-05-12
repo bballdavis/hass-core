@@ -1,8 +1,8 @@
 """Home Assistant Yellow firmware update entity."""
 
-from __future__ import annotations
-
 import logging
+
+from universal_silabs_flasher.flasher import YellowFlasher
 
 from homeassistant.components.homeassistant_hardware.coordinator import (
     FirmwareUpdateCoordinator,
@@ -14,7 +14,6 @@ from homeassistant.components.homeassistant_hardware.update import (
 from homeassistant.components.homeassistant_hardware.util import (
     ApplicationType,
     FirmwareInfo,
-    ResetTarget,
 )
 from homeassistant.components.update import UpdateDeviceClass
 from homeassistant.const import EntityCategory
@@ -107,7 +106,7 @@ def _async_create_update_entity(
         entity_description = FIRMWARE_ENTITY_DESCRIPTIONS[
             ApplicationType(firmware_type)
         ]
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         _LOGGER.debug(
             "Unknown firmware type %r, using default entity description", firmware_type
         )
@@ -150,7 +149,7 @@ async def async_setup_entry(
 class FirmwareUpdateEntity(BaseFirmwareUpdateEntity):
     """Yellow firmware update entity."""
 
-    bootloader_reset_methods = [ResetTarget.YELLOW]  # Triggers a GPIO reset
+    _flasher_cls = YellowFlasher
 
     def __init__(
         self,

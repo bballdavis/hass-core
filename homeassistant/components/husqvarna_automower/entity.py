@@ -1,7 +1,5 @@
 """Platform for Husqvarna Automower base entity."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Callable, Coroutine
 import functools
@@ -121,12 +119,15 @@ class AutomowerBaseEntity(CoordinatorEntity[AutomowerDataUpdateCoordinator]):
         """Initialize AutomowerEntity."""
         super().__init__(coordinator)
         self.mower_id = mower_id
-        parts = self.mower_attributes.system.model.split(maxsplit=2)
+        model_witout_manufacturer = self.mower_attributes.system.model.removeprefix(
+            "Husqvarna "
+        ).removeprefix("HUSQVARNA ")
+        parts = model_witout_manufacturer.split(maxsplit=1)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, mower_id)},
-            manufacturer=parts[0],
-            model=parts[1],
-            model_id=parts[2],
+            manufacturer="Husqvarna",
+            model=parts[0].capitalize().removesuffix("®"),
+            model_id=parts[1],
             name=self.mower_attributes.system.name,
             serial_number=self.mower_attributes.system.serial_number,
             suggested_area="Garden",

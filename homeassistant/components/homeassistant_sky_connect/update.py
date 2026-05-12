@@ -1,8 +1,8 @@
 """Home Assistant SkyConnect firmware update entity."""
 
-from __future__ import annotations
-
 import logging
+
+from universal_silabs_flasher.flasher import Zbt1Flasher
 
 from homeassistant.components.homeassistant_hardware.coordinator import (
     FirmwareUpdateCoordinator,
@@ -108,7 +108,7 @@ def _async_create_update_entity(
         entity_description = FIRMWARE_ENTITY_DESCRIPTIONS[
             ApplicationType(firmware_type)
         ]
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         _LOGGER.debug(
             "Unknown firmware type %r, using default entity description", firmware_type
         )
@@ -151,8 +151,7 @@ async def async_setup_entry(
 class FirmwareUpdateEntity(BaseFirmwareUpdateEntity):
     """SkyConnect firmware update entity."""
 
-    # The ZBT-1 does not have a hardware bootloader trigger
-    bootloader_reset_methods = []
+    _flasher_cls = Zbt1Flasher
 
     def __init__(
         self,

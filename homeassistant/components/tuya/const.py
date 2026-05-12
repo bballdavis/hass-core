@@ -1,7 +1,5 @@
 """Constants for the Tuya integration."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from enum import StrEnum
 import logging
@@ -17,6 +15,7 @@ from homeassistant.const import (
     SIGNAL_STRENGTH_DECIBELS,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     Platform,
+    UnitOfConductivity,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
@@ -30,7 +29,6 @@ from homeassistant.const import (
 DOMAIN = "tuya"
 LOGGER = logging.getLogger(__package__)
 
-CONF_APP_TYPE = "tuya_app_type"
 CONF_ENDPOINT = "endpoint"
 CONF_TERMINAL_ID = "terminal_id"
 CONF_TOKEN_INFO = "token_info"
@@ -48,6 +46,9 @@ TUYA_RESPONSE_MSG = "msg"
 TUYA_RESPONSE_QR_CODE = "qrcode"
 TUYA_RESPONSE_RESULT = "result"
 TUYA_RESPONSE_SUCCESS = "success"
+
+CELSIUS_ALIASES = {"°c", "c", "celsius", "℃"}
+FAHRENHEIT_ALIASES = {"°f", "f", "fahrenheit", "℉"}
 
 PLATFORMS = [
     Platform.ALARM_CONTROL_PANEL,
@@ -78,18 +79,6 @@ class WorkMode(StrEnum):
     MUSIC = "music"
     SCENE = "scene"
     WHITE = "white"
-
-
-class DPType(StrEnum):
-    """Data point types."""
-
-    BITMAP = "Bitmap"
-    BOOLEAN = "Boolean"
-    ENUM = "Enum"
-    INTEGER = "Integer"
-    JSON = "Json"
-    RAW = "Raw"
-    STRING = "String"
 
 
 class DeviceCategory(StrEnum):
@@ -607,6 +596,7 @@ class DPCode(StrEnum):
     ALARM_DELAY_TIME = "alarm_delay_time"
     ALARM_MESSAGE = "alarm_message"
     ALARM_MSG = "alarm_msg"
+    ALARM_STATE = "alarm_state"
     ALARM_SWITCH = "alarm_switch"  # Alarm switch
     ALARM_TIME = "alarm_time"  # Alarm time
     ALARM_VOLUME = "alarm_volume"  # Alarm volume
@@ -616,6 +606,7 @@ class DPCode(StrEnum):
     ARM_DOWN_PERCENT = "arm_down_percent"
     ARM_UP_PERCENT = "arm_up_percent"
     ATMOSPHERIC_PRESSTURE = "atmospheric_pressture"  # Typo is in Tuya API
+    AUTO_CLEAN = "auto_clean"
     BACKUP_RESERVE = "backup_reserve"
     BASIC_ANTI_FLICKER = "basic_anti_flicker"
     BASIC_DEVICE_VOLUME = "basic_device_volume"
@@ -703,19 +694,24 @@ class DPCode(StrEnum):
     DECIBEL_SWITCH = "decibel_switch"
     DEHUMIDITY_SET_ENUM = "dehumidify_set_enum"
     DEHUMIDITY_SET_VALUE = "dehumidify_set_value"
+    DELAY_CLEAN_TIME = "delay_clean_time"
     DELAY_SET = "delay_set"
+    DEVICE_RESTART = "device_restart"
     DEW_POINT_TEMP = "dew_point_temp"
     DISINFECTION = "disinfection"
     DO_NOT_DISTURB = "do_not_disturb"
+    DOORBELL_PIC = "doorbell_pic"
     DOORCONTACT_STATE = "doorcontact_state"  # Status of door window sensor
     DOORCONTACT_STATE_2 = "doorcontact_state_2"
     DOORCONTACT_STATE_3 = "doorcontact_state_3"
     DUSTER_CLOTH = "duster_cloth"
+    EC_CURRENT = "ec_current"
     ECO2 = "eco2"
     EDGE_BRUSH = "edge_brush"
     ELECTRICITY_LEFT = "electricity_left"
     EXCRETION_TIME_DAY = "excretion_time_day"
     EXCRETION_TIMES_DAY = "excretion_times_day"
+    FACTORY_RESET = "factory_reset"
     FAN_BEEP = "fan_beep"  # Sound
     FAN_COOL = "fan_cool"  # Cool wind
     FAN_DIRECTION = "fan_direction"  # Fan direction
@@ -756,6 +752,10 @@ class DPCode(StrEnum):
     HUMIDITY_VALUE = "humidity_value"  # Humidity
     INSTALLATION_HEIGHT = "installation_height"
     INVERTER_OUTPUT_POWER = "inverter_output_power"
+    IPC_AUTO_SIREN = "ipc_auto_siren"
+    IPC_BRIGHT = "ipc_bright"
+    IPC_CONTRAST = "ipc_contrast"
+    IPC_SHARP = "ipc_sharp"
     IPC_WORK_MODE = "ipc_work_mode"
     LED_TYPE_1 = "led_type_1"
     LED_TYPE_2 = "led_type_2"
@@ -772,6 +772,7 @@ class DPCode(StrEnum):
     LIQUID_STATE = "liquid_state"
     LOCK = "lock"  # Lock / Child lock
     MACH_OPERATE = "mach_operate"
+    MANUAL_CLEAN = "manual_clean"
     MANUAL_FEED = "manual_feed"
     MASTER_MODE = "master_mode"  # alarm mode
     MASTER_STATE = "master_state"  # alarm state
@@ -780,6 +781,7 @@ class DPCode(StrEnum):
     MINI_SET = "mini_set"
     MODE = "mode"  # Working mode / Mode
     MOODLIGHTING = "moodlighting"  # Mood light
+    MOTION_AREA_SWITCH = "motion_area_switch"  # Activity area
     MOTION_RECORD = "motion_record"
     MOTION_SENSITIVITY = "motion_sensitivity"
     MOTION_SWITCH = "motion_switch"  # Motion switch
@@ -788,6 +790,7 @@ class DPCode(StrEnum):
     MUFFLING = "muffling"  # Muffling
     NEAR_DETECTION = "near_detection"
     OPPOSITE = "opposite"
+    ORP_CURRENT = "orp_current"
     OUTPUT_POWER_LIMIT = "output_power_limit"
     OXYGEN = "oxygen"  # Oxygen bar
     PAUSE = "pause"
@@ -800,6 +803,7 @@ class DPCode(StrEnum):
     PHASE_A = "phase_a"
     PHASE_B = "phase_b"
     PHASE_C = "phase_c"
+    PH_CURRENT = "ph_current"
     PIR = "pir"  # Motion sensor
     PM1 = "pm1"
     PM10 = "pm10"
@@ -949,6 +953,7 @@ class DPCode(StrEnum):
     UP_DOWN = "up_down"
     UPPER_TEMP = "upper_temp"
     UPPER_TEMP_F = "upper_temp_f"
+    USE_TIME_ONE = "use_time_one"
     UV = "uv"  # UV sterilization
     UV_INDEX = "uv_index"
     UV_RUNTIME = "uv_runtime"  # UV runtime
@@ -981,6 +986,7 @@ class DPCode(StrEnum):
     WIRELESS_ELECTRICITY = "wireless_electricity"
     WORK_MODE = "work_mode"  # Working mode
     WORK_POWER = "work_power"
+    WORK_STATE = "work_state"
     WORK_STATE_E = "work_state_e"
 
 
@@ -1153,12 +1159,12 @@ UNITS = (
     ),
     UnitOfMeasurement(
         unit=UnitOfTemperature.CELSIUS,
-        aliases={"°c", "c", "celsius", "℃"},
+        aliases=CELSIUS_ALIASES,
         device_classes={SensorDeviceClass.TEMPERATURE},
     ),
     UnitOfMeasurement(
         unit=UnitOfTemperature.FAHRENHEIT,
-        aliases={"°f", "f", "fahrenheit"},
+        aliases=FAHRENHEIT_ALIASES,
         device_classes={SensorDeviceClass.TEMPERATURE},
     ),
     UnitOfMeasurement(
@@ -1170,6 +1176,20 @@ UNITS = (
         unit=UnitOfElectricPotential.MILLIVOLT,
         aliases={"mv", "millivolt"},
         device_classes={SensorDeviceClass.VOLTAGE},
+    ),
+    UnitOfMeasurement(
+        unit="",
+        aliases={"ph"},
+        device_classes={
+            SensorDeviceClass.PH,
+        },
+    ),
+    UnitOfMeasurement(
+        unit=UnitOfConductivity.MICROSIEMENS_PER_CM,
+        aliases={"us"},
+        device_classes={
+            SensorDeviceClass.CONDUCTIVITY,
+        },
     ),
 )
 

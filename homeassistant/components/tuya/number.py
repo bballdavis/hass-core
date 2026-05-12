@@ -1,7 +1,9 @@
 """Support for Tuya number."""
 
-from __future__ import annotations
-
+from tuya_device_handlers.definition.number import (
+    NumberDefinition,
+    get_default_definition,
+)
 from tuya_sharing import CustomerDevice, Manager
 
 from homeassistant.components.number import (
@@ -15,7 +17,6 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import TuyaConfigEntry
 from .const import (
     DEVICE_CLASS_UNITS,
     DOMAIN,
@@ -23,11 +24,9 @@ from .const import (
     TUYA_DISCOVERY_NEW,
     DeviceCategory,
     DPCode,
-    DPType,
 )
+from .coordinator import TuyaConfigEntry
 from .entity import TuyaEntity
-from .models import IntegerTypeData, find_dpcode
-from .util import ActionDPCodeNotFoundError
 
 NUMBERS: dict[DeviceCategory, tuple[NumberEntityDescription, ...]] = {
     DeviceCategory.BH: (
@@ -182,6 +181,14 @@ NUMBERS: dict[DeviceCategory, tuple[NumberEntityDescription, ...]] = {
             entity_category=EntityCategory.CONFIG,
         ),
     ),
+    DeviceCategory.MSP: (
+        NumberEntityDescription(
+            key=DPCode.DELAY_CLEAN_TIME,
+            translation_key="delay_clean_time",
+            device_class=NumberDeviceClass.DURATION,
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
     DeviceCategory.MZJ: (
         NumberEntityDescription(
             key=DPCode.COOK_TEMPERATURE,
@@ -221,7 +228,14 @@ NUMBERS: dict[DeviceCategory, tuple[NumberEntityDescription, ...]] = {
         ),
     ),
     DeviceCategory.SFKZQ: (
-        # Controls the irrigation duration for the water valve
+        # Controls the irrigation duration for indexed water valves
+        NumberEntityDescription(
+            key=DPCode.COUNTDOWN,
+            translation_key="irrigation_duration",
+            device_class=NumberDeviceClass.DURATION,
+            entity_category=EntityCategory.CONFIG,
+        ),
+        # Controls the irrigation duration for indexed water valves
         NumberEntityDescription(
             key=DPCode.COUNTDOWN_1,
             translation_key="indexed_irrigation_duration",
@@ -290,6 +304,21 @@ NUMBERS: dict[DeviceCategory, tuple[NumberEntityDescription, ...]] = {
         NumberEntityDescription(
             key=DPCode.BASIC_DEVICE_VOLUME,
             translation_key="volume",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        NumberEntityDescription(
+            key=DPCode.IPC_BRIGHT,
+            translation_key="video_brightness",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        NumberEntityDescription(
+            key=DPCode.IPC_CONTRAST,
+            translation_key="video_contrast",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        NumberEntityDescription(
+            key=DPCode.IPC_SHARP,
+            translation_key="video_sharpness",
             entity_category=EntityCategory.CONFIG,
         ),
     ),
@@ -456,9 +485,9 @@ async def async_setup_entry(
             device = manager.device_map[device_id]
             if descriptions := NUMBERS.get(device.category):
                 entities.extend(
-                    TuyaNumberEntity(device, manager, description)
+                    TuyaNumberEntity(device, manager, description, definition)
                     for description in descriptions
-                    if description.key in device.status
+                    if (definition := get_default_definition(device, description.key))
                 )
 
         async_add_entities(entities)
@@ -473,35 +502,36 @@ async def async_setup_entry(
 class TuyaNumberEntity(TuyaEntity, NumberEntity):
     """Tuya Number Entity."""
 
-    _number: IntegerTypeData | None = None
-
     def __init__(
         self,
         device: CustomerDevice,
         device_manager: Manager,
         description: NumberEntityDescription,
+        definition: NumberDefinition,
     ) -> None:
-        """Init Tuya sensor."""
-        super().__init__(device, device_manager)
-        self.entity_description = description
-        self._attr_unique_id = f"{super().unique_id}{description.key}"
+        """Initialize a Tuya number entity."""
+        super().__init__(device, device_manager, description)
+        self._dpcode_wrapper = definition.number_wrapper
 
-        if int_type := find_dpcode(
-            self.device, description.key, dptype=DPType.INTEGER, prefer_function=True
-        ):
-            self._number = int_type
-            self._attr_native_max_value = self._number.max_scaled
-            self._attr_native_min_value = self._number.min_scaled
-            self._attr_native_step = self._number.step_scaled
-            if description.native_unit_of_measurement is None:
-                self._attr_native_unit_of_measurement = int_type.unit
+        self._attr_native_max_value = definition.number_wrapper.max_value
+        self._attr_native_min_value = definition.number_wrapper.min_value
+        self._attr_native_step = definition.number_wrapper.value_step
+        if description.native_unit_of_measurement is None:
+            self._attr_native_unit_of_measurement = (
+                definition.number_wrapper.native_unit
+            )
+
+        self._validate_device_class_unit()
+
+    def _validate_device_class_unit(self) -> None:
+        """Validate device class unit compatibility."""
 
         # Logic to ensure the set device class and API received Unit Of Measurement
         # match Home Assistants requirements.
         if (
             self.device_class is not None
             and not self.device_class.startswith(DOMAIN)
-            and description.native_unit_of_measurement is None
+            and self.entity_description.native_unit_of_measurement is None
             # we do not need to check mappings if the API UOM is allowed
             and self.native_unit_of_measurement
             not in NUMBER_DEVICE_CLASS_UNITS[self.device_class]
@@ -538,26 +568,22 @@ class TuyaNumberEntity(TuyaEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         """Return the entity value to represent the entity state."""
-        # Unknown or unsupported data type
-        if self._number is None:
-            return None
+        return self._read_wrapper(self._dpcode_wrapper)
 
-        # Raw value
-        if (value := self.device.status.get(self.entity_description.key)) is None:
-            return None
+    async def _process_device_update(
+        self,
+        updated_status_properties: list[str],
+        dp_timestamps: dict[str, int] | None,
+    ) -> bool:
+        """Called when Tuya device sends an update with updated properties.
 
-        return self._number.scale_value(value)
-
-    def set_native_value(self, value: float) -> None:
-        """Set new value."""
-        if self._number is None:
-            raise ActionDPCodeNotFoundError(self.device, self.entity_description.key)
-
-        self._send_command(
-            [
-                {
-                    "code": self.entity_description.key,
-                    "value": self._number.scale_value_back(value),
-                }
-            ]
+        Returns True if the Home Assistant state should be written,
+        or False if the state write should be skipped.
+        """
+        return not self._dpcode_wrapper.skip_update(
+            self.device, updated_status_properties, dp_timestamps
         )
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set new value."""
+        await self._async_send_wrapper_updates(self._dpcode_wrapper, value)

@@ -1,9 +1,9 @@
 """Config flow for the Home Assistant Connect ZBT-2 integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
+
+from universal_silabs_flasher.flasher import Zbt2Flasher
 
 from homeassistant.components import usb
 from homeassistant.components.homeassistant_hardware import firmware_config_flow
@@ -13,7 +13,6 @@ from homeassistant.components.homeassistant_hardware.helpers import (
 from homeassistant.components.homeassistant_hardware.util import (
     ApplicationType,
     FirmwareInfo,
-    ResetTarget,
 )
 from homeassistant.components.usb import (
     usb_service_info_from_device,
@@ -39,8 +38,6 @@ from .const import (
     NABU_CASA_FIRMWARE_RELEASES_URL,
     PID,
     PRODUCT,
-    RADIO_TX_POWER_DBM_BY_COUNTRY,
-    RADIO_TX_POWER_DBM_DEFAULT,
     SERIAL_NUMBER,
     VID,
 )
@@ -76,8 +73,9 @@ class ZBT2FirmwareMixin(ConfigEntryBaseFlow, FirmwareInstallFlowProtocol):
     """Mixin for Home Assistant Connect ZBT-2 firmware methods."""
 
     context: ConfigFlowContext
-    BOOTLOADER_RESET_METHODS = [ResetTarget.RTS_DTR]
+
     ZIGBEE_BAUDRATE = 460800
+    _flasher_cls = Zbt2Flasher
 
     async def async_step_install_zigbee_firmware(
         self, user_input: dict[str, Any] | None = None
@@ -104,21 +102,6 @@ class ZBT2FirmwareMixin(ConfigEntryBaseFlow, FirmwareInstallFlowProtocol):
             step_id="install_thread_firmware",
             next_step_id="finish_thread_installation",
         )
-
-    def _extra_zha_hardware_options(self) -> dict[str, Any]:
-        """Return extra ZHA hardware options."""
-        country = self.hass.config.country
-
-        if country is None:
-            tx_power = RADIO_TX_POWER_DBM_DEFAULT
-        else:
-            tx_power = RADIO_TX_POWER_DBM_BY_COUNTRY.get(
-                country, RADIO_TX_POWER_DBM_DEFAULT
-            )
-
-        return {
-            "tx_power": tx_power,
-        }
 
 
 class HomeAssistantConnectZBT2ConfigFlow(

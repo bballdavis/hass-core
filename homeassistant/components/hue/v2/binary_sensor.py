@@ -1,7 +1,5 @@
 """Support for Hue binary sensors."""
 
-from __future__ import annotations
-
 from functools import partial
 
 from aiohue.v2 import HueBridgeV2
@@ -213,9 +211,9 @@ class HueMotionAwareSensor(HueMotionSensor):
             resource.id
         )
         group_id = self._motion_area_configuration.group.rid
-        self.group = self.bridge.api.groups[group_id]
+        self.hue_group = self.bridge.api.groups[group_id]
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.group.id)},
+            identifiers={(DOMAIN, self.hue_group.id)},
         )
 
     async def async_added_to_hass(self) -> None:
